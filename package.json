@@ -1,0 +1,20 @@
+{
+  "name": "xenmail",
+  "version": "0.0.1",
+  "main": "src/app.js",
+  "repository": "https://github.com/imxeno/xenmail.git",
+  "author": "Piotr Adamczyk <xeno@xeno.yt>",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "lint": "tslint --project ./",
+    "watch": "nodemon --watch 'src/**/*.ts' --ignore 'src/**/*.spec.ts' --exec 'ts-node' src/app.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^10.11.6",
+    "nodemon": "^1.18.4",
+    "ts-node": "^7.0.1",
+    "tslint": "^5.11.0",
+    "typescript": "^3.1.2"
+  }
+}
