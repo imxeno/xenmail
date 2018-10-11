@@ -1,10 +1,14 @@
 import { Socket } from "net";
+import * as shortid from "shortid";
 import { createInterface, ReadLine } from "readline";
 import SMTPResponse from "./Response";
 import { SMTPResponseCode } from "./ResponseCode";
 import SMTPServer from "./Server";
+import { TLSSocket } from "tls";
 
+import logger from "./Logger";
 export default class SMTPClient {
+  private id: string;
   private server: SMTPServer;
   private socket: Socket;
   private reader: ReadLine;
@@ -12,6 +16,7 @@ export default class SMTPClient {
   private ehlo: boolean | null = null;
 
   constructor(server: SMTPServer, socket: Socket) {
+    this.id = shortid.generate();
     this.server = server;
     this.socket = socket;
     this.reader = createInterface(socket);
@@ -20,10 +25,13 @@ export default class SMTPClient {
   }
 
   private write(response: SMTPResponse): void {
-    this.socket.write(response.toString());
+    const packet = response.toString();
+    logger.debug("[" + this.id + "] > " + packet);
+    this.socket.write(packet);
   }
 
   private _onConnection(): void {
+    logger.debug("[" + this.id + "] connected");
     this.write(
       new SMTPResponse(
         SMTPResponseCode.ServiceReady,
@@ -36,6 +44,7 @@ export default class SMTPClient {
     if (line.length === 0) {
       return;
     }
+    logger.debug("[" + this.id + "] < " + line);
     const packet = line.split(" ");
     const header = packet[0].toUpperCase();
     switch (header) {
@@ -105,6 +114,24 @@ export default class SMTPClient {
             "https://tools.ietf.org/html/rfc5321"
           )
         );
+        break;
+      case "STARTTLS":
+        if (this.fqdn === null) {
+          this.write(
+            new SMTPResponse(SMTPResponseCode.BadSequence, "EHLO/HELO first.")
+          );
+          break;
+        }
+        this.write(
+          new SMTPResponse(
+            SMTPResponseCode.ServiceReady,
+            "Okay, lets negotiate then. You go first."
+          )
+        );
+        this.socket = new TLSSocket(this.socket, {
+          isServer: true,
+          server: this.server.getSocket()
+        });
         break;
       case "QUIT":
         this.write(new SMTPResponse(SMTPResponseCode.Success, "Goodbye!"));

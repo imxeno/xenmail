@@ -22,4 +22,7 @@ export default class SMTPServer {
   public getConfig(): SMTPServerConfig {
     return this.config;
   }
+  public getSocket(): Server {
+    return this.server;
+  }
 }

@@ -16,5 +16,10 @@
     "ts-node": "^7.0.1",
     "tslint": "^5.11.0",
     "typescript": "^3.1.2"
+  },
+  "dependencies": {
+    "@types/shortid": "^0.0.29",
+    "log4js": "^3.0.6",
+    "shortid": "^2.2.13"
   }
 }
