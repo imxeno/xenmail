@@ -4,7 +4,7 @@ import { createInterface, ReadLine } from "readline";
 import SMTPResponse from "./Response";
 import { SMTPResponseCode } from "./ResponseCode";
 import SMTPServer from "./Server";
-import { TLSSocket } from "tls";
+import { TLSSocket, createSecureContext } from "tls";
 
 import logger from "./Logger";
 import SMTPExtension from "./extensions/Extension";
@@ -24,11 +24,20 @@ export default class SMTPClient {
     this.reader = createInterface(socket);
     this.reader.on("line", (line: string) => this._onLine(line));
     this._onConnection();
+    this.socket.on("close", () => this._onClose());
   }
 
   private write(response: SMTPResponse): void {
     const packet = response.toString();
-    logger.debug("[" + this.id + "] > " + packet.substr(0, packet.length - 2));
+
+    // debug
+    packet
+      .substr(0, packet.length - 2)
+      .split("\r\n")
+      .forEach((line: string) => {
+        logger.debug("[" + this.id + "] > " + line);
+      });
+
     this.socket.write(packet);
   }
 
@@ -40,6 +49,10 @@ export default class SMTPClient {
         this.server.getConfig().host + " ESMTP xensmtp"
       )
     );
+  }
+
+  private _onClose(): void {
+    logger.debug("[" + this.id + "] disconnected");
   }
 
   private _onLine(line: string): void {
@@ -133,7 +146,11 @@ export default class SMTPClient {
         );
         this.socket = new TLSSocket(this.socket, {
           isServer: true,
-          server: this.server.getSocket()
+          server: this.server.getSocket(),
+          secureContext: createSecureContext({
+            cert: this.server.getConfig().ssl.cert,
+            key: this.server.getConfig().ssl.key
+          })
         });
         break;
       case "QUIT":

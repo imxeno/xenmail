@@ -3,8 +3,16 @@ import SMTPClient from "./Client";
 import SMTPExtension from "./extensions/Extension";
 import SMTPStartTlsExtension from "./extensions/StartTlsExtension";
 
+interface SMTPServerSSLConfig {
+  allow: boolean;
+  force: boolean;
+  cert: Buffer;
+  key: Buffer;
+}
+
 interface SMTPServerConfig {
   host: string;
+  ssl: SMTPServerSSLConfig;
 }
 
 export default class SMTPServer {

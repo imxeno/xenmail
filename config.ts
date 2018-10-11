@@ -1,11 +1,13 @@
+import { readFileSync } from "fs";
+
 export default {
   smtp: {
     host: "localhost",
     ssl: {
       allow: true,
       force: true,
-      cert: "./ssl/localhost.cert",
-      key: "./ssl/localhost.key"
+      cert: readFileSync("./ssl/localhost.cert"),
+      key: readFileSync("./ssl/localhost.key")
     }
   }
 };
