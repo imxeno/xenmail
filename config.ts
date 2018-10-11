@@ -1,5 +1,9 @@
 export default {
   smtp: {
-    host: "localhost"
+    host: "localhost",
+    ssl: {
+      cert: "./ssl/localhost.cert",
+      key: "./ssl/localhost.key"
+    }
   }
 };
