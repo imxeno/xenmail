@@ -7,6 +7,8 @@ import SMTPServer from "./Server";
 import { TLSSocket } from "tls";
 
 import logger from "./Logger";
+import SMTPExtension from "./extensions/Extension";
+
 export default class SMTPClient {
   private id: string;
   private server: SMTPServer;
@@ -26,7 +28,7 @@ export default class SMTPClient {
 
   private write(response: SMTPResponse): void {
     const packet = response.toString();
-    logger.debug("[" + this.id + "] > " + packet);
+    logger.debug("[" + this.id + "] > " + packet.substr(0, packet.length - 2));
     this.socket.write(packet);
   }
 
@@ -97,15 +99,16 @@ export default class SMTPClient {
         }
         this.fqdn = packet[1];
         this.ehlo = true;
-        this.write(
-          new SMTPResponse(
-            SMTPResponseCode.ServiceReady,
-            this.server.getConfig().host +
-              " at your service, [" +
-              this.socket.remoteAddress +
-              "]"
-          )
+        let response = [
+          this.server.getConfig().host +
+            " at your service, [" +
+            this.socket.remoteAddress +
+            "]"
+        ];
+        this.server.extensions.forEach(
+          (e: SMTPExtension) => (response = e.hookEhloResponse(this, response))
         );
+        this.write(new SMTPResponse(SMTPResponseCode.ServiceReady, response));
         break;
       case "HELP":
         this.write(

@@ -1,5 +1,7 @@
 import { Server, Socket } from "net";
 import SMTPClient from "./Client";
+import SMTPExtension from "./extensions/Extension";
+import SMTPStartTlsExtension from "./extensions/StartTlsExtension";
 
 interface SMTPServerConfig {
   host: string;
@@ -8,6 +10,7 @@ interface SMTPServerConfig {
 export default class SMTPServer {
   private config: SMTPServerConfig;
   private server: Server;
+  public extensions: SMTPExtension[] = [new SMTPStartTlsExtension()];
   constructor(config: SMTPServerConfig) {
     this.config = config;
     this.server = new Server();
