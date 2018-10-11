@@ -74,4 +74,7 @@ typings/
 
 .DS_Store
 
-ssl/
+ssl/*.key
+ssl/*.cert
+
+vmail/*.mail

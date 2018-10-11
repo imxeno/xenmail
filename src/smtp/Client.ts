@@ -9,6 +9,8 @@ import { TLSSocket, createSecureContext } from "tls";
 import logger from "./Logger";
 import SMTPExtension from "./extensions/Extension";
 import SMTPMessage from "./Message";
+import * as fs from "fs";
+import * as path from "path";
 
 export default class SMTPClient {
   private id: string;
@@ -258,7 +260,7 @@ export default class SMTPClient {
   private _handleDataLine(line: string): void {
     if (line === ".") {
       this.receivingData = false;
-      this.write(new SMTPResponse(SMTPResponseCode.Success, "OK"));
+      this._sendMail();
       return;
     }
     this.message.appendDataLine(line);
@@ -289,5 +291,23 @@ export default class SMTPClient {
 
   private _onError(err: Error): void {
     // ignore the error completely for now
+  }
+
+  private _sendMail(): void {
+    const uemn = Date.now() + "_" + shortid.generate();
+    fs.writeFileSync(
+      path.resolve(this.server.getConfig().maildir + "/" + uemn + ".mail"),
+      this.message.getData()
+    );
+    logger.info(
+      "Accepted e-mail: " +
+        uemn +
+        " from: <" +
+        this.message.getSender() +
+        "> to: <" +
+        this.message.getRecipient() +
+        ">"
+    );
+    this.write(new SMTPResponse(SMTPResponseCode.Success, "OK"));
   }
 }

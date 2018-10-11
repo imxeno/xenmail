@@ -13,6 +13,7 @@ interface SMTPServerSSLConfig {
 interface SMTPServerConfig {
   host: string;
   ssl: SMTPServerSSLConfig;
+  maildir: string;
 }
 
 export default class SMTPServer {

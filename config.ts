@@ -1,4 +1,5 @@
 import { readFileSync } from "fs";
+import * as path from "path";
 
 export default {
   smtp: {
@@ -8,6 +9,7 @@ export default {
       force: true,
       cert: readFileSync("./ssl/localhost.cert"),
       key: readFileSync("./ssl/localhost.key")
-    }
+    },
+    maildir: path.resolve("./vmail")
   }
 };
