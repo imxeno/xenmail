@@ -8,6 +8,7 @@ import { TLSSocket, createSecureContext } from "tls";
 
 import logger from "./Logger";
 import SMTPExtension from "./extensions/Extension";
+import SMTPMessage from "./Message";
 
 export default class SMTPClient {
   private id: string;
@@ -16,6 +17,8 @@ export default class SMTPClient {
   private reader: ReadLine;
   private fqdn: string | null = null;
   private ehlo: boolean | null = null;
+  private message: SMTPMessage = new SMTPMessage();
+  private receivingData: boolean = false;
 
   constructor(server: SMTPServer, socket: Socket) {
     this.id = shortid.generate();
@@ -60,6 +63,9 @@ export default class SMTPClient {
       return;
     }
     logger.debug("[" + this.id + "] < " + line);
+    if (this.receivingData) {
+      return this._handleDataLine(line);
+    }
     const packet = line.split(" ");
     const header = packet[0].toUpperCase();
     switch (header) {
@@ -259,6 +265,19 @@ export default class SMTPClient {
   }
 
   private _handleData(): void {
+    this.receivingData = true;
+    this.write(
+      new SMTPResponse(SMTPResponseCode.StartInput, "Go ahead, I'm listening.")
+    );
+  }
+
+  private _handleDataLine(line: string): void {
+    if (line === ".") {
+      this.receivingData = false;
+      this.write(new SMTPResponse(SMTPResponseCode.Success, "OK"));
+      return;
+    }
+    this.message.appendDataLine(line);
     this.write(
       new SMTPResponse(SMTPResponseCode.StartInput, "Go ahead, I'm listening.")
     );
