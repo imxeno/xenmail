@@ -212,6 +212,7 @@ export default class SMTPClient {
       return;
     }
     const sender = arg1[1].substr(1, arg1[1].length - 2);
+    this.message.setSender(sender);
     this.write(new SMTPResponse(SMTPResponseCode.ServiceReady, "OK"));
   }
 
@@ -243,6 +244,7 @@ export default class SMTPClient {
       return;
     }
     const recipient = arg[1].substr(1, arg[1].length - 2);
+    this.message.setRecipient(recipient);
     this.write(new SMTPResponse(SMTPResponseCode.ServiceReady, "OK"));
   }
 
