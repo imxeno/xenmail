@@ -28,6 +28,7 @@ export default class SMTPClient {
     this.reader.on("line", (line: string) => this._onLine(line));
     this._onConnection();
     this.socket.on("close", () => this._onClose());
+    this.socket.on("error", (err: Error) => logger.error(err));
   }
 
   private write(response: SMTPResponse): void {
@@ -278,8 +279,5 @@ export default class SMTPClient {
       return;
     }
     this.message.appendDataLine(line);
-    this.write(
-      new SMTPResponse(SMTPResponseCode.StartInput, "Go ahead, I'm listening.")
-    );
   }
 }
