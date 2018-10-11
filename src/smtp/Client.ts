@@ -72,6 +72,7 @@ export default class SMTPClient {
             )
           );
           this.socket.end();
+          return;
         }
         if (packet.length === 0) {
           this.write(
@@ -81,6 +82,7 @@ export default class SMTPClient {
             )
           );
           this.socket.end();
+          return;
         }
         this.fqdn = packet[1];
         this.ehlo = false;
@@ -100,6 +102,7 @@ export default class SMTPClient {
             )
           );
           this.socket.end();
+          return;
         }
         if (packet.length === 0) {
           this.write(
@@ -109,6 +112,7 @@ export default class SMTPClient {
             )
           );
           this.socket.end();
+          return;
         }
         this.fqdn = packet[1];
         this.ehlo = true;
@@ -152,6 +156,66 @@ export default class SMTPClient {
             key: this.server.getConfig().ssl.key
           })
         });
+        break;
+      case "RCPT":
+        if (packet.length < 2) {
+          this.write(
+            new SMTPResponse(
+              SMTPResponseCode.TransactionFailed,
+              "Invalid MAIL argument count, closing connection."
+            )
+          );
+          this.socket.end();
+          return;
+        }
+        const arg = packet[1].split(":");
+        if (
+          arg.length !== 2 ||
+          arg[0] !== "TO" ||
+          arg[1][0] !== "<" ||
+          arg[1][arg[1].length - 1] !== ">"
+        ) {
+          this.write(
+            new SMTPResponse(
+              SMTPResponseCode.TransactionFailed,
+              "Invalid MAIL argument, closing connection."
+            )
+          );
+          this.socket.end();
+          return;
+        }
+        const recipient = arg[1].substr(1, arg[1].length - 2);
+        this.write(new SMTPResponse(SMTPResponseCode.ServiceReady, "OK"));
+        break;
+      case "MAIL":
+        if (packet.length < 2) {
+          this.write(
+            new SMTPResponse(
+              SMTPResponseCode.TransactionFailed,
+              "Invalid MAIL argument count, closing connection."
+            )
+          );
+          this.socket.end();
+          return;
+        }
+        const arg1 = packet[1].split(":");
+        if (
+          arg1.length !== 2 ||
+          arg1[0] !== "FROM" ||
+          arg1[1][0] !== "<" ||
+          arg1[1][arg1[1].length - 1] !== ">"
+        ) {
+          this.write(
+            new SMTPResponse(
+              SMTPResponseCode.TransactionFailed,
+              "Invalid MAIL argument, closing connection."
+            )
+          );
+          this.socket.end();
+          return;
+        }
+        const sender = arg1[1].substr(1, arg1[1].length - 2);
+        this.write(new SMTPResponse(SMTPResponseCode.ServiceReady, "OK"));
         break;
       case "QUIT":
         this.write(new SMTPResponse(SMTPResponseCode.Success, "Goodbye!"));
