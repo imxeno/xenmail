@@ -77,26 +77,7 @@ export default class SMTPClient {
         this._handleEhlo(packet);
         break;
       case "STARTTLS":
-        if (this.fqdn === null) {
-          this.write(
-            new SMTPResponse(SMTPResponseCode.BadSequence, "EHLO/HELO first.")
-          );
-          break;
-        }
-        this.write(
-          new SMTPResponse(
-            SMTPResponseCode.ServiceReady,
-            "Okay, lets negotiate then. You go first."
-          )
-        );
-        this.socket = new TLSSocket(this.socket, {
-          isServer: true,
-          server: this.server.getSocket(),
-          secureContext: createSecureContext({
-            cert: this.server.getConfig().ssl.cert,
-            key: this.server.getConfig().ssl.key
-          })
-        });
+        this._handleStartTls();
         break;
       case "MAIL":
         this._handleMail(packet);
@@ -279,6 +260,29 @@ export default class SMTPClient {
       return;
     }
     this.message.appendDataLine(line);
+  }
+
+  private _handleStartTls(): void {
+    if (this.fqdn === null) {
+      this.write(
+        new SMTPResponse(SMTPResponseCode.BadSequence, "EHLO/HELO first.")
+      );
+      return;
+    }
+    this.write(
+      new SMTPResponse(
+        SMTPResponseCode.ServiceReady,
+        "Okay, lets negotiate then. You go first."
+      )
+    );
+    this.socket = new TLSSocket(this.socket, {
+      isServer: true,
+      server: this.server.getSocket(),
+      secureContext: createSecureContext({
+        cert: this.server.getConfig().ssl.cert,
+        key: this.server.getConfig().ssl.key
+      })
+    });
   }
 
   private _onError(err: Error): void {
