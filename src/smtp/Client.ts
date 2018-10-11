@@ -64,76 +64,10 @@ export default class SMTPClient {
     const header = packet[0].toUpperCase();
     switch (header) {
       case "HELO":
-        if (packet.length > 2) {
-          this.write(
-            new SMTPResponse(
-              SMTPResponseCode.TransactionFailed,
-              "Invalid HELO/EHLO argument, closing connection."
-            )
-          );
-          this.socket.end();
-          return;
-        }
-        if (packet.length === 0) {
-          this.write(
-            new SMTPResponse(
-              SMTPResponseCode.TransactionFailed,
-              "Empty HELO/EHLO argument is not allowed, closing connection."
-            )
-          );
-          this.socket.end();
-          return;
-        }
-        this.fqdn = packet[1];
-        this.ehlo = false;
-        this.write(
-          new SMTPResponse(
-            SMTPResponseCode.ServiceReady,
-            this.server.getConfig().host + " at your service"
-          )
-        );
+        this._handleHelo(packet);
         break;
       case "EHLO":
-        if (packet.length > 2) {
-          this.write(
-            new SMTPResponse(
-              SMTPResponseCode.TransactionFailed,
-              "Invalid HELO/EHLO argument, closing connection."
-            )
-          );
-          this.socket.end();
-          return;
-        }
-        if (packet.length === 0) {
-          this.write(
-            new SMTPResponse(
-              SMTPResponseCode.TransactionFailed,
-              "Empty HELO/EHLO argument is not allowed, closing connection."
-            )
-          );
-          this.socket.end();
-          return;
-        }
-        this.fqdn = packet[1];
-        this.ehlo = true;
-        let response = [
-          this.server.getConfig().host +
-            " at your service, [" +
-            this.socket.remoteAddress +
-            "]"
-        ];
-        this.server.extensions.forEach(
-          (e: SMTPExtension) => (response = e.hookEhloResponse(this, response))
-        );
-        this.write(new SMTPResponse(SMTPResponseCode.ServiceReady, response));
-        break;
-      case "HELP":
-        this.write(
-          new SMTPResponse(
-            SMTPResponseCode.ServiceReady,
-            "https://tools.ietf.org/html/rfc5321"
-          )
-        );
+        this._handleEhlo(packet);
         break;
       case "STARTTLS":
         if (this.fqdn === null) {
@@ -157,69 +91,20 @@ export default class SMTPClient {
           })
         });
         break;
-      case "RCPT":
-        if (packet.length < 2) {
-          this.write(
-            new SMTPResponse(
-              SMTPResponseCode.TransactionFailed,
-              "Invalid MAIL argument count, closing connection."
-            )
-          );
-          this.socket.end();
-          return;
-        }
-        const arg = packet[1].split(":");
-        if (
-          arg.length !== 2 ||
-          arg[0] !== "TO" ||
-          arg[1][0] !== "<" ||
-          arg[1][arg[1].length - 1] !== ">"
-        ) {
-          this.write(
-            new SMTPResponse(
-              SMTPResponseCode.TransactionFailed,
-              "Invalid MAIL argument, closing connection."
-            )
-          );
-          this.socket.end();
-          return;
-        }
-        const recipient = arg[1].substr(1, arg[1].length - 2);
-        this.write(new SMTPResponse(SMTPResponseCode.ServiceReady, "OK"));
-        break;
       case "MAIL":
-        if (packet.length < 2) {
-          this.write(
-            new SMTPResponse(
-              SMTPResponseCode.TransactionFailed,
-              "Invalid MAIL argument count, closing connection."
-            )
-          );
-          this.socket.end();
-          return;
-        }
-        const arg1 = packet[1].split(":");
-        if (
-          arg1.length !== 2 ||
-          arg1[0] !== "FROM" ||
-          arg1[1][0] !== "<" ||
-          arg1[1][arg1[1].length - 1] !== ">"
-        ) {
-          this.write(
-            new SMTPResponse(
-              SMTPResponseCode.TransactionFailed,
-              "Invalid MAIL argument, closing connection."
-            )
-          );
-          this.socket.end();
-          return;
-        }
-        const sender = arg1[1].substr(1, arg1[1].length - 2);
-        this.write(new SMTPResponse(SMTPResponseCode.ServiceReady, "OK"));
+        this._handleMail(packet);
+        break;
+      case "RCPT":
+        this._handleRcpt(packet);
+        break;
+      case "DATA":
+        this._handleData();
         break;
       case "QUIT":
-        this.write(new SMTPResponse(SMTPResponseCode.Success, "Goodbye!"));
-        this.socket.end();
+        this._handleQuit();
+        break;
+      case "HELP":
+        this._handleHelp();
         break;
       default:
         this.write(
@@ -229,5 +114,153 @@ export default class SMTPClient {
           )
         );
     }
+  }
+
+  private _handleHelo(packet: string[]): void {
+    if (packet.length > 2) {
+      this.write(
+        new SMTPResponse(
+          SMTPResponseCode.TransactionFailed,
+          "Invalid HELO/EHLO argument, closing connection."
+        )
+      );
+      this.socket.end();
+      return;
+    }
+    if (packet.length === 0) {
+      this.write(
+        new SMTPResponse(
+          SMTPResponseCode.TransactionFailed,
+          "Empty HELO/EHLO argument is not allowed, closing connection."
+        )
+      );
+      this.socket.end();
+      return;
+    }
+    this.fqdn = packet[1];
+    this.ehlo = false;
+    this.write(
+      new SMTPResponse(
+        SMTPResponseCode.ServiceReady,
+        this.server.getConfig().host + " at your service"
+      )
+    );
+  }
+
+  private _handleEhlo(packet: string[]): void {
+    if (packet.length > 2) {
+      this.write(
+        new SMTPResponse(
+          SMTPResponseCode.TransactionFailed,
+          "Invalid HELO/EHLO argument, closing connection."
+        )
+      );
+      this.socket.end();
+      return;
+    }
+    if (packet.length === 0) {
+      this.write(
+        new SMTPResponse(
+          SMTPResponseCode.TransactionFailed,
+          "Empty HELO/EHLO argument is not allowed, closing connection."
+        )
+      );
+      this.socket.end();
+      return;
+    }
+    this.fqdn = packet[1];
+    this.ehlo = true;
+    let response = [
+      this.server.getConfig().host +
+        " at your service, [" +
+        this.socket.remoteAddress +
+        "]"
+    ];
+    this.server.extensions.forEach(
+      (e: SMTPExtension) => (response = e.hookEhloResponse(this, response))
+    );
+    this.write(new SMTPResponse(SMTPResponseCode.ServiceReady, response));
+  }
+
+  private _handleQuit(): void {
+    this.write(new SMTPResponse(SMTPResponseCode.Success, "Goodbye!"));
+    this.socket.end();
+  }
+
+  private _handleHelp(): void {
+    this.write(
+      new SMTPResponse(
+        SMTPResponseCode.ServiceReady,
+        "https://tools.ietf.org/html/rfc5321"
+      )
+    );
+  }
+
+  private _handleMail(packet: string[]): void {
+    if (packet.length < 2) {
+      this.write(
+        new SMTPResponse(
+          SMTPResponseCode.TransactionFailed,
+          "Invalid MAIL argument count, closing connection."
+        )
+      );
+      this.socket.end();
+      return;
+    }
+    const arg1 = packet[1].split(":");
+    if (
+      arg1.length !== 2 ||
+      arg1[0] !== "FROM" ||
+      arg1[1][0] !== "<" ||
+      arg1[1][arg1[1].length - 1] !== ">"
+    ) {
+      this.write(
+        new SMTPResponse(
+          SMTPResponseCode.TransactionFailed,
+          "Invalid MAIL argument, closing connection."
+        )
+      );
+      this.socket.end();
+      return;
+    }
+    const sender = arg1[1].substr(1, arg1[1].length - 2);
+    this.write(new SMTPResponse(SMTPResponseCode.ServiceReady, "OK"));
+  }
+
+  private _handleRcpt(packet: string[]): void {
+    if (packet.length < 2) {
+      this.write(
+        new SMTPResponse(
+          SMTPResponseCode.TransactionFailed,
+          "Invalid MAIL argument count, closing connection."
+        )
+      );
+      this.socket.end();
+      return;
+    }
+    const arg = packet[1].split(":");
+    if (
+      arg.length !== 2 ||
+      arg[0] !== "TO" ||
+      arg[1][0] !== "<" ||
+      arg[1][arg[1].length - 1] !== ">"
+    ) {
+      this.write(
+        new SMTPResponse(
+          SMTPResponseCode.TransactionFailed,
+          "Invalid MAIL argument, closing connection."
+        )
+      );
+      this.socket.end();
+      return;
+    }
+    const recipient = arg[1].substr(1, arg[1].length - 2);
+    this.write(new SMTPResponse(SMTPResponseCode.ServiceReady, "OK"));
+  }
+
+  private _handleData(): void {
+    this.write(
+      new SMTPResponse(SMTPResponseCode.StartInput, "Go ahead, I'm listening.")
+    );
   }
 }
