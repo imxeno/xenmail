@@ -28,7 +28,7 @@ export default class SMTPClient {
     this.reader.on("line", (line: string) => this._onLine(line));
     this._onConnection();
     this.socket.on("close", () => this._onClose());
-    this.socket.on("error", (err: Error) => logger.error(err));
+    this.socket.on("error", (err: Error) => this._onError(err));
   }
 
   private write(response: SMTPResponse): void {
@@ -279,5 +279,9 @@ export default class SMTPClient {
       return;
     }
     this.message.appendDataLine(line);
+  }
+
+  private _onError(err: Error): void {
+    // ignore the error completely for now
   }
 }
