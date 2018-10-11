@@ -8,7 +8,7 @@ export default class SMTPClient {
   private server: SMTPServer;
   private socket: Socket;
   private reader: ReadLine;
-  private fqdn: string;
+  private fqdn: string | null = null;
 
   constructor(server: SMTPServer, socket: Socket) {
     this.server = server;
@@ -35,9 +35,31 @@ export default class SMTPClient {
     if (line.length === 0) {
       return;
     }
-    const splitted = line.split(" ");
-    const header = splitted[0].toUpperCase();
+    const packet = line.split(" ");
+    const header = packet[0].toUpperCase();
     switch (header) {
+      case "HELO":
+      case "EHLO":
+        if (packet.length > 2) {
+          this.write(
+            new SMTPResponse(
+              SMTPResponseCode.TransactionFailed,
+              "Invalid HELO/EHLO argument, closing connection."
+            )
+          );
+          this.socket.end();
+        }
+        if (packet.length === 0) {
+          this.write(
+            new SMTPResponse(
+              SMTPResponseCode.TransactionFailed,
+              "Empty HELO/EHLO argument is not allowed, closing connection."
+            )
+          );
+          this.socket.end();
+        }
+        this.fqdn = packet[1];
+        break;
       case "QUIT":
         this.write(new SMTPResponse(SMTPResponseCode.Success, "Goodbye!"));
         this.socket.end();
