@@ -60,6 +60,14 @@ export default class SMTPClient {
         }
         this.fqdn = packet[1];
         break;
+      case "HELP":
+        this.write(
+          new SMTPResponse(
+            SMTPResponseCode.ServiceReady,
+            "https://tools.ietf.org/html/rfc5321"
+          )
+        );
+        break;
       case "QUIT":
         this.write(new SMTPResponse(SMTPResponseCode.Success, "Goodbye!"));
         this.socket.end();
