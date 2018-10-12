@@ -26,9 +26,13 @@ export default class SMTPClient {
     this.id = shortid.generate();
     this.server = server;
     this.socket = socket;
-    this.reader = createInterface(socket);
-    this.reader.on("line", (line: string) => this._onLine(line));
     this._onConnection();
+    this._subscribeEvents();
+  }
+
+  private _subscribeEvents(): void {
+    this.reader = createInterface(this.socket);
+    this.reader.on("line", (line: string) => this._onLine(line));
     this.socket.on("close", () => this._onClose());
     this.socket.on("error", (err: Error) => this._onError(err));
   }
@@ -131,7 +135,7 @@ export default class SMTPClient {
     this.ehlo = false;
     this.write(
       new SMTPResponse(
-        SMTPResponseCode.ServiceReady,
+        SMTPResponseCode.Success,
         this.server.getConfig().host + " at your service"
       )
     );
@@ -169,7 +173,7 @@ export default class SMTPClient {
     this.server.extensions.forEach(
       (e: SMTPExtension) => (response = e.hookEhloResponse(this, response))
     );
-    this.write(new SMTPResponse(SMTPResponseCode.ServiceReady, response));
+    this.write(new SMTPResponse(SMTPResponseCode.Success, response));
   }
 
   private _handleQuit(): void {
@@ -287,6 +291,7 @@ export default class SMTPClient {
         key: this.server.getConfig().ssl.key
       })
     });
+    this._subscribeEvents();
   }
 
   private _onError(err: Error): void {
