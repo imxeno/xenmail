@@ -4,7 +4,6 @@ import { createInterface, ReadLine } from "readline";
 import SMTPResponse from "./Response";
 import { SMTPResponseCode } from "./ResponseCode";
 import SMTPServer from "./Server";
-import { TLSSocket, createSecureContext } from "tls";
 
 import logger from "./Logger";
 import SMTPExtension from "./extensions/Extension";
@@ -13,12 +12,12 @@ import * as fs from "fs";
 import * as path from "path";
 
 export default class SMTPClient {
+  public fqdn: string | null = null;
+  public ehlo: boolean | null = null;
+  public socket: Socket;
+  public server: SMTPServer;
   private id: string;
-  private server: SMTPServer;
-  private socket: Socket;
   private reader: ReadLine;
-  private fqdn: string | null = null;
-  private ehlo: boolean | null = null;
   private message: SMTPMessage = new SMTPMessage();
   private receivingData: boolean = false;
 
@@ -27,18 +26,12 @@ export default class SMTPClient {
     this.server = server;
     this.socket = socket;
     this._onConnection();
-    this.resubscribeEvents();
-  }
-
-  private resubscribeEvents(): void {
-    this.socket.removeAllListeners();
-    this.reader = createInterface(this.socket);
-    this.reader.on("line", (line: string) => this._onLine(line));
     this.socket.on("close", () => this._onClose());
     this.socket.on("error", (err: Error) => this._onError(err));
+    this.recreateReader();
   }
 
-  private write(response: SMTPResponse): void {
+  public write(response: SMTPResponse): void {
     const packet = response.toString();
 
     // debug
@@ -50,6 +43,11 @@ export default class SMTPClient {
       });
 
     this.socket.write(packet);
+  }
+
+  public recreateReader(): void {
+    this.reader = createInterface(this.socket);
+    this.reader.on("line", (line: string) => this._onLine(line));
   }
 
   private _onConnection(): void {
@@ -75,6 +73,12 @@ export default class SMTPClient {
       return this._handleDataLine(line);
     }
     const packet = line.split(" ");
+    for (const ext of this.server.extensions) {
+      const consumed = ext.hookPacketHandler(this, packet);
+      if (consumed) {
+        return;
+      }
+    }
     const header = packet[0].toUpperCase();
     switch (header) {
       case "HELO":
@@ -82,9 +86,6 @@ export default class SMTPClient {
         break;
       case "EHLO":
         this._handleEhlo(packet);
-        break;
-      case "STARTTLS":
-        this._handleStartTls();
         break;
       case "MAIL":
         this._handleMail(packet);
@@ -269,30 +270,6 @@ export default class SMTPClient {
       return;
     }
     this.message.appendDataLine(line);
-  }
-
-  private _handleStartTls(): void {
-    if (this.fqdn === null) {
-      this.write(
-        new SMTPResponse(SMTPResponseCode.BadSequence, "EHLO/HELO first.")
-      );
-      return;
-    }
-    this.write(
-      new SMTPResponse(
-        SMTPResponseCode.ServiceReady,
-        "Okay, lets negotiate then. You go first."
-      )
-    );
-    this.socket = new TLSSocket(this.socket, {
-      isServer: true,
-      server: this.server.getSocket(),
-      secureContext: createSecureContext({
-        cert: this.server.getConfig().ssl.cert,
-        key: this.server.getConfig().ssl.key
-      })
-    });
-    this.resubscribeEvents();
   }
 
   private _onError(err: Error): void {
