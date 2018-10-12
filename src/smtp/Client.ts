@@ -27,10 +27,11 @@ export default class SMTPClient {
     this.server = server;
     this.socket = socket;
     this._onConnection();
-    this._subscribeEvents();
+    this.resubscribeEvents();
   }
 
-  private _subscribeEvents(): void {
+  private resubscribeEvents(): void {
+    this.socket.removeAllListeners();
     this.reader = createInterface(this.socket);
     this.reader.on("line", (line: string) => this._onLine(line));
     this.socket.on("close", () => this._onClose());
