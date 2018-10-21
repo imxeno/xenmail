@@ -179,7 +179,9 @@ export default class SMTPClient {
   }
 
   private _handleQuit(): void {
-    this.write(new SMTPResponse(SMTPResponseCode.Success, "Goodbye!"));
+    this.write(
+      new SMTPResponse(SMTPResponseCode.ServiceClosingTransmission, "Goodbye!")
+    );
     this.socket.end();
   }
 
