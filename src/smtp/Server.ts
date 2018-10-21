@@ -17,9 +17,9 @@ interface SMTPServerConfig {
 }
 
 export default class SMTPServer {
+  public extensions: SMTPExtension[] = [new SMTPStartTlsExtension()];
   private config: SMTPServerConfig;
   private server: Server;
-  public extensions: SMTPExtension[] = [new SMTPStartTlsExtension()];
   constructor(config: SMTPServerConfig) {
     this.config = config;
     this.server = new Server();
